@@ -91,7 +91,7 @@ app.use(async ctx => {
 })
 
 // let reqCache = '{}'
-let hasRead = true
+let hasReadReps = true
 let lastResponseCache = '{}'
 
 // 轮询发送请求列表, 每次发送请求后，重置 allreadyRead = false
@@ -104,16 +104,16 @@ setInterval(async() => {
     return
   }
   lastRequestCache = current
-  const res = await setRequestCache(JSON.stringify({ requestArray, allreadyRead: hasRead }))
+  const res = await setRequestCache(JSON.stringify({ requestArray, allreadyRead: hasReadReps }))
   console.log('===============  set request ===============', res)
-  hasRead = false
+  hasReadReps = false
 }, 2000)
 
 // 轮询获取响应
 setInterval(async() => {
   try {
     const responseCache = await getResponseCache()
-    hasRead = true
+    hasReadReps = true
     if (lastResponseCache === responseCache) {
       console.log('no response')
       return

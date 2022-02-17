@@ -8,7 +8,7 @@ exports.token = 1681347482
 exports.proxy = 'http://proxy.company.com:8081'
 exports.proxy = false
 // 使用本地文件测试
-exports.useFile = false
+exports.useFile = true
 
 exports.requestAppmsgid = 100000034
 exports.responseAppmsgid = 100000033

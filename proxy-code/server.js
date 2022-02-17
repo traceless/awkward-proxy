@@ -31,7 +31,7 @@ setInterval(async() => {
   try {
     const reqCache = await getRequestCache()
     const { requestArray = [], allreadyRead = false } = JSON.parse(reqCache)
-    // 判断是否可写，当客户端读取过响应后后，才能重新写入到repsonseCache中
+    // 判断是否可写，当客户端（浏览器）读取过响应后后，才能重新写入到repsonseCache中
     writeable = allreadyRead
     // console.log('you request allreadyRead:', allreadyRead)
     if (requestArray.length === 0) {
@@ -41,7 +41,7 @@ setInterval(async() => {
     // 请求url 把响应放到 队列
     for (let i = 0; i < requestArray.length; i++) {
       const request = requestArray[i]
-      // 判断时间是否过期的连接, 60秒的请求应该是过期的
+      // 根据时间来判断是否已经处理过这个请求了，因为浏览器的代理，不会一直更新这个请求缓存区的。它要等响应到了，才会更新。
       if (request.createTime <= lastTime) {
         // console.log('request.createTime', request.createTime, lastTime)
         continue
