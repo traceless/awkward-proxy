@@ -8,7 +8,7 @@
 如图：
  ![image](https://github.com/traceless/awkward-proxy/blob/master/WX20200514.png)
 
-1. 把内网pc的请求信息存放到白名单的互联网文章A中，通常请求信息有url, param, header等
+1. 把内网pc的请求信息存放到白名单的互联网文章A中，通常请求信息有url, param/body, header等
 2. 外网pc定时从文章A拿到请求信息体，然后通过外网请求链接获取内容
 3. 将获取到的内容写入到文章B中，通常就是包含header，body信息等
 4. 内网pc定时从文章B获取到响应信息，然后返回给浏览器

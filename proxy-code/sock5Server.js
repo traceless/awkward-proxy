@@ -2,6 +2,7 @@
 const net = require('net')
 const { getRequestCache } = require('./getCache')
 const { setResponseCache } = require('./setCache')
+const { snowflake } = require('./snowflake')
 
 class RequestInfo {
   constructor({ socketId, remoteAddr, remotePort, body, createTime }) {
@@ -14,10 +15,10 @@ class RequestInfo {
 }
 
 const sockMap = {}
-function remoteClient({ remoteAddr, remotePort, body, socketId, createTime }) {
-  console.log('socketId ======socketId22221111', socketId)
+function remoteConnect({ remoteAddr, remotePort, body, socketId, createTime }) {
+  console.log('socketId ======socketId:', socketId)
   if (sockMap[socketId] != null) {
-    console.log('remoteClient body', socketId)
+    console.log('remoteConnect body', socketId)
     // 转为二进制
     const data = Buffer.from(body, 'base64')
     sockMap[socketId].write(data)
@@ -25,7 +26,7 @@ function remoteClient({ remoteAddr, remotePort, body, socketId, createTime }) {
   }
   // 新的socketId，那么服务也是要创建新的连接
   let remote = net.connect(remotePort, remoteAddr, () => {
-    console.log(` remoteClient connecting : ${remoteAddr}:${remotePort}`)
+    console.log(` remoteConnect connecting : ${remoteAddr}:${remotePort}`)
     const data = Buffer.from(body, 'base64')
     sockMap[socketId].write(data)
   })
@@ -52,28 +53,26 @@ function remoteClient({ remoteAddr, remotePort, body, socketId, createTime }) {
 // 这里从请求缓冲区获取 请求的报文
 let writeable = false
 let resultResponse = []
-let lastTime = 100
+let lastTime = snowflake.shortNextId()
 setInterval(async () => {
   try {
     const reqCache = await getRequestCache()
     const { requestArray = [], allreadyRead = false } = JSON.parse(reqCache)
     // 判断是否可写，当客户端读取过响应后后，才能重新写入到repsonseCache中
     writeable = allreadyRead
-    // console.log('you request allreadyRead:', allreadyRead)
+    console.log('you request allreadyRead:', allreadyRead, requestArray.length)
     if (requestArray.length === 0) {
       return
     }
-    console.log('you request allreadyRead:', allreadyRead)
     // 请求url 把响应放到 队列
     for (let i = 0; i < requestArray.length; i++) {
       const request = new RequestInfo(requestArray[i])
-      // 判断时间是否过期的连接, 60秒的请求应该是过期的
-      if (request.createTime <= lastTime) {
-        // console.log('request.createTime', request.createTime, lastTime)
+      // 根据时间线是否过期的请求，createTime是增序的
+      if (request.createTime <= lastTime || !request.socketId) {
         continue
       }
       lastTime = request.createTime
-      remoteClient(request)
+      remoteConnect(request)
     }
   } catch (err) {
     console.log('err: getRequestCache', err)
@@ -82,7 +81,6 @@ setInterval(async () => {
 
 // 轮询 写入响应
 setInterval(async () => {
-  // console.info('not writeable', writeable)
   if (!writeable) {
     console.info('not writeable')
     return

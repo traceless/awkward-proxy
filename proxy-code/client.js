@@ -5,12 +5,34 @@ const uuid = require('uuid')
 
 const { setRequestCache } = require('./setCache')
 const { getResponseCache } = require('./getCache')
+const { snowflake } = require('./snowflake')
 const app = new Koa()
+// 等待
+async function sleep(time) {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      resolve();
+    }, time || 1000);
+  });
+}
+const httpsFlag = '_sssss'
+// 判断链接
+function matchHttpsUrl(html) {
+  //  匹配https开始的，结尾是单引号或者双引号的连接
+  let match = /(https:\/\/)+(www\.)?[a-zA-Z0-9][-a-zA-Z0-9]{0,62}(\.[a-zA-Z0-9][-a-zA-Z0-9]{0,62})+(:\d+)?[^"\']*/g
+  let result
+  while (result = match.exec(html)) {
+    const newUrl = result[0].replace('https:', 'http:') + httpsFlag
+    html = html.replace(result[0], newUrl)
+    // console.log(" ======match url========:", result[0], newUrl)
+  }
+  return html
+}
 
 const requestArray = [] // {url, method, headers, body }
 let responseArray = [] // {  headers, body }
 // 把请求进行封装
-app.use(async(ctx, next) => {
+app.use(async (ctx, next) => {
   // 可以设置图片就不请求
   const url = ctx.request.url
   if (~url.indexOf('.png') || ~url.indexOf('.jpg') || ~url.indexOf('.ico') || ~url.indexOf('.gif')) {
@@ -27,41 +49,32 @@ app.use(async(ctx, next) => {
       resolve(Buffer.concat(data).toString('base64'))
     })
   })
-  console.log('noheaders', ctx.request.headers)
+  // console.log('browser headers', ctx.request.headers)
   const { method, headers, body } = ctx.request
-  // 测试代码，避免其他的连接请求影响
-  if (!~url.indexOf('weixin')) {
-    console.log('not do url', url)
-    // return
+  let myurl = url
+  if (url.indexOf(httpsFlag)) {
+    myurl = url.replace(httpsFlag, '').replace('http:', 'https:')
   }
-  // 请求对象, 如果是是http://s__开头的。 那么转换成https://，这里为了兼容https的代理
-  const myurl = url.replace('http://s__', 'https://')
-  headers.host = headers.host.replace('s__', '')
-  console.log('ctx.request.myurl:', myurl)
+  console.log("======= myurl=======", myurl)
   const requestData = { method, url: myurl, headers, body }
-  requestData.createTime = new Date().getTime()
+  requestData.createTime = snowflake.shortNextId()
   requestData.reqId = uuid.v1()
-  // 相应的时候 需要这个字段值
+  // 代理服务响应的时候，就需要这个字段值去匹配是哪个请求的响应
   ctx.request.reqId = requestData.reqId
   requestArray.push(requestData)
-  // console.log('ctx.request', requestData)
   await next()
 })
 
-// 进行响应
+// 下一步等待响应
 app.use(async ctx => {
   const reqId = ctx.request.reqId
-  // 轮询查看是否有数据回来了
-  for (let i = 0; i < 10; i++) {
-    await new Promise((resolve, reject) => {
-      setTimeout(() => {
-        console.log('@@ await response:', ctx.request.url)
-        resolve()
-      }, 2000)
-    })
+  // 轮询查看是否有数据回来了，轮训N次
+  for (let i = 0; i < 30; i++) {
+    // 睡眠等待1s，下次再看看是否已经返回
+    await sleep(1000)
     const index = responseArray.findIndex(res => res.reqId === reqId)
     if (~index) {
-      // delete responseArray[index].headers['accept-ranges']
+      // 组装headers
       for (const field in responseArray[index].headers) {
         ctx.append(field, responseArray[index].headers[field])
       }
@@ -72,48 +85,50 @@ app.use(async ctx => {
       } else {
         ctx.body = Buffer.from(responseArray[index].body, 'base64').toString()
       }
-      // 把html页面中的https 改成http, 这样才能请求
+      // 把html页面中的https改成http, 这样js，png那些链接才能继续请求
       if (~responseArray[index].headers['content-type'].indexOf('text/html')) {
-        ctx.body = ctx.body.replace(/https:\/\//g, 'http://s__')
+        ctx.body = matchHttpsUrl(ctx.body)
+        // 可以强制全部走https，比如某些域名下全部走https，这里交给大家去实现了
+        // ctx.body = ctx.body.replace(/https:\/\//g, 'http://')
       }
       ctx.state = responseArray[index].state
       console.log('client get the response：', ctx.state)
       responseArray.splice(index, 1)
-      // 删除请求
+      // 删除已响应的请求
       const reqIndex = requestArray.findIndex(req => req.reqId === reqId)
       requestArray.splice(reqIndex, 1)
       return
     }
   }
-  // 删除请求超时的连接，一般超时为20秒
+  // 等待30次，还没有响应数据，那么就说明超时了，先不管了
   const reqIndex = requestArray.findIndex(req => req.reqId === reqId)
   requestArray.splice(reqIndex, 1)
 })
 
 // let reqCache = '{}'
-let hasReadReps = true
+let allreadyRead = true
 let lastResponseCache = '{}'
 
 // 轮询发送请求列表, 每次发送请求后，重置 allreadyRead = false
 let lastRequestCache = '[]'
-setInterval(async() => {
+setInterval(async () => {
   // 发送请求，发送新请求
   const current = JSON.stringify(requestArray)
-  if (lastRequestCache === JSON.stringify(requestArray)) {
+  if (lastRequestCache === current) {
     console.log('no request')
     return
   }
   lastRequestCache = current
-  const res = await setRequestCache(JSON.stringify({ requestArray, allreadyRead: hasReadReps }))
+  const res = await setRequestCache(JSON.stringify({ requestArray, allreadyRead }))
   console.log('===============  set request ===============', res)
-  hasReadReps = false
+  allreadyRead = false
 }, 2000)
 
 // 轮询获取响应
-setInterval(async() => {
+setInterval(async () => {
   try {
     const responseCache = await getResponseCache()
-    hasReadReps = true
+    allreadyRead = true
     if (lastResponseCache === responseCache) {
       console.log('no response')
       return

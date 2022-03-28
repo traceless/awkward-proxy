@@ -3,7 +3,7 @@ const net = require('net')
 const uuid = require('uuid')
 const { setRequestCache } = require('./setCache')
 const { getResponseCache } = require('./getCache')
-
+const { snowflake } = require('./snowflake')
 class RequestInfo {
   constructor({ socketId, remoteAddr, remotePort, body, createTime }) {
     this.socketId = socketId
@@ -61,8 +61,7 @@ let server = net.createServer(socket => {
             socket.on('data', data => {
               console.log('socket data', data.length)
               const body = data.toString('base64')
-              const requestData = new RequestInfo({ reqId: uuid.v1(), socketId, remoteAddr, remotePort, body, createTime: new Date().getTime() })
-              // remote.write(data)
+              const requestData = new RequestInfo({ reqId: uuid.v1(), socketId, remoteAddr, remotePort, body, createTime: snowflake.shortNextId() })
               requestArray.push(requestData)
             })
           })
@@ -77,11 +76,11 @@ let server = net.createServer(socket => {
   socket.on('error', err => { console.error(`error:${err.message}`) })
 })
 const port = 11100
-console.log('port:', port)
-server.listen(11100)
+console.log('listen sock5 port:', port)
+server.listen(port)
 
 // 轮询发送请求列表, 每次发送请求后，重置 allreadyRead = false
-let hasRead = true
+let allreadyRead = true
 let lastRequestCache = '[]'
 setInterval(async () => {
   // 删除那些过期消息
@@ -100,9 +99,9 @@ setInterval(async () => {
     return
   }
   lastRequestCache = current
-  const res = await setRequestCache(JSON.stringify({ requestArray, allreadyRead: hasRead }))
+  const res = await setRequestCache(JSON.stringify({ requestArray, allreadyRead }))
   console.log('===============  set request ===============', res)
-  hasRead = false
+  allreadyRead = false
 }, 1000)
 
 let lastResponseCache = '{}'
@@ -110,7 +109,7 @@ let lastResponseCache = '{}'
 setInterval(async () => {
   try {
     const responseCache = await getResponseCache()
-    hasRead = true
+    allreadyRead = true
     if (lastResponseCache === responseCache) {
       console.log('no response')
       return

@@ -49,28 +49,20 @@ function getCache(appmsgid) {
 let getResponseCache = async function() {
   return getCache(config.responseAppmsgid)
 }
+// 获取请求内容
+let getRequestCache = async function() {
+  return getCache(config.requestAppmsgid)
+}
+
+// 调试模式，使用本地文件进行调试，作为数据交换介质
 if (config.useFile) {
+  getRequestCache = async function() {
+    return fs.readFileSync(path.resolve(__dirname, 'request.txt')).toString()
+  }
   getResponseCache = function() {
     return fs.readFileSync(path.resolve(__dirname, 'response.txt')).toString()
   }
 }
 
-// 获取请求内容
-let getRequestCache = async function() {
-  return getCache(config.requestAppmsgid)
-}
-if (config.useFile) {
-  getRequestCache = async function() {
-    return fs.readFileSync(path.resolve(__dirname, 'request.txt')).toString()
-  }
-}
-
 module.exports = { getResponseCache, getRequestCache }
-// 测试
-// getResponseCache().then(data => {
-//   console.log('getResponseCache：', data)
-// })
-
-// getRequestCache().then(data => {
-//   console.log('getRequestCache：', data)
-// })
+ 
