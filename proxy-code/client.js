@@ -6,6 +6,9 @@ const uuid = require('uuid')
 const { setRequestCache } = require('./setCache')
 const { getResponseCache } = require('./getCache')
 const { snowflake } = require('./snowflake')
+const config = require('./config')
+const base64 = require('./base64')
+const mybase64 = new base64(config.secret)
 const app = new Koa()
 // 等待
 async function sleep(time) {
@@ -46,7 +49,7 @@ app.use(async (ctx, next) => {
   // 不管什么内容，一律转base64,交给代理服务器server.js 处理
   ctx.request.body = await new Promise((resolve, reject) => {
     ctx.req.on('end', () => {
-      resolve(Buffer.concat(data).toString('base64'))
+      resolve(mybase64.encodeBase64(Buffer.concat(data)))
     })
   })
   // console.log('browser headers', ctx.request.headers)

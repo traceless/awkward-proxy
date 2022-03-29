@@ -4,6 +4,8 @@ const { getRequestCache } = require('./getCache')
 const { setResponseCache } = require('./setCache')
 const { snowflake } = require('./snowflake')
 const config = require('./config')
+const base64 = require('./base64')
+const mybase64 = new base64(config.secret)
 // 睡眠，交出执行权
 async function sleep(time) {
   return new Promise((resolve) => {
@@ -57,7 +59,7 @@ setInterval(async () => {
       lastTime = request.createTime
       // 如果是上传文件或者图片，那么就改成字节，这里没有实现，可以判断Content-Type="multipart/form-data"
       // 进行设置 request multipart参数 https://github.com/request/request
-      request.body = Buffer.from(request.body, 'base64').toString()
+      request.body = mybase64.decodeBase64(request.body).toString()
       console.log('get you requestUrl', request.url)
       try {
         executeRequest(request).then(res => {

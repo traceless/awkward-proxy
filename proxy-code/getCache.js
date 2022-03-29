@@ -17,10 +17,6 @@ const opts = {
   }
 }
 
-function decode(fileBase64) {
-  fileBase64 = fileBase64.replace(/,/g, '/').replace(/\*/g, '+').replace(/\$/g, '=')
-  return fileBase64
-}
 const { gunzipSync } = require('zlib')
 function getCache(appmsgid) {
   opts.url = `https://mp.weixin.qq.com/cgi-bin/appmsg?t=media/appmsg_edit&action=edit&lang=zh_CN&token=${config.token}&type=10&appmsgid=${appmsgid}&fromview=list`
@@ -35,7 +31,6 @@ function getCache(appmsgid) {
       const start = res.body.indexOf(starStr)
       const end = res.body.indexOf('@_@')
       let data = res.body.substring(start + starStr.length, end)
-      data = decode(data)
       try {
         data = gunzipSync(Buffer.from(data, 'base64')).toString()
       } catch (err) {
