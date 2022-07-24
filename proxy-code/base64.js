@@ -61,7 +61,8 @@ function Base64(_secret) {
 }
 
 Base64.randomSecret = function () {
-  const source = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/='
+  // 不能使用 = 号，url穿参数不支持
+  const source = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789,*$'
   let chars = source.split('')
   const newChars = []
   while (chars.length > 0) {

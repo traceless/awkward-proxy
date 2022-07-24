@@ -3,7 +3,8 @@ const fs = require('fs')
 const path = require('path')
 const request = require('request')
 const config = require('./config')
-
+const base64 = require('./base64')
+const mybase64 = new base64(config.secret)
 const opts = {
   url: `https://mp.weixin.qq.com/cgi-bin/operate_appmsg?t=ajax-response&sub=update&type=10&token=${config.token}&lang=zh_CN`,
   proxy: config.proxy || null,
@@ -34,7 +35,7 @@ const { gzipSync } = require('zlib')
 let setCache = function(requestCache, appmsgid, dataSeq = '1339542083857891328') {
   return new Promise((resolve, reject) => {
     // // 发送前先压缩 转为base64
-    let data = gzipSync(requestCache).toString('base64')
+    let data = mybase64.encodeBase64(gzipSync(requestCache))
     opts.body = createBody(data, appmsgid, dataSeq)
     request.post(opts, (err, res) => {
       if (err) {

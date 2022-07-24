@@ -106,6 +106,7 @@ app.use(async ctx => {
   // 等待30次，还没有响应数据，那么就说明超时了，先不管了
   const reqIndex = requestArray.findIndex(req => req.reqId === reqId)
   requestArray.splice(reqIndex, 1)
+  console.log(' ###request time out ', ctx.request.url)
 })
 
 // let reqCache = '{}'

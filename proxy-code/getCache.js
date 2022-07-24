@@ -3,7 +3,8 @@ const request = require('request')
 const config = require('./config')
 const fs = require('fs')
 const path = require('path')
-
+const base64 = require('./base64')
+const mybase64 = new base64(config.secret)
 const opts = {
   url: `https://mp.weixin.qq.com/cgi-bin/appmsg?t=media/appmsg_edit&action=edit&lang=zh_CN&token=${config.token}&type=10&appmsgid=${config.responseAppmsgid}&fromview=list`,
   proxy: config.proxy || null,
@@ -32,8 +33,9 @@ function getCache(appmsgid) {
       const end = res.body.indexOf('@_@')
       let data = res.body.substring(start + starStr.length, end)
       try {
-        data = gunzipSync(Buffer.from(data, 'base64')).toString()
+        data = gunzipSync(mybase64.decodeBase64(data)).toString()
       } catch (err) {
+        console.log('@@@@', data)
         reject(err)
       }
       resolve(data)
